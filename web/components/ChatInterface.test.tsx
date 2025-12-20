@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChatInterface } from './ChatInterface';
 import { act } from 'react';
+import { SidebarProvider } from './SidebarContext';
 
 // Mock useRouter
 const pushMock = vi.fn();
@@ -22,34 +23,48 @@ describe('ChatInterface', () => {
     });
 
     it('renders the initial state correctly', async () => {
-        // Mock empty history response
-        (global.fetch as any).mockResolvedValueOnce({
+        // Mock empty history responses (two calls)
+        vi.mocked(global.fetch).mockResolvedValueOnce({
             json: async () => ({ content: '' }),
-        });
+        } as unknown as Response);
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+            json: async () => ({ content: '' }),
+        } as unknown as Response);
 
         await act(async () => {
-            render(<ChatInterface sessionId="test-session" />);
+            render(
+                <SidebarProvider>
+                    <ChatInterface sessionId="test-session" />
+                </SidebarProvider>
+            );
         });
 
         expect(screen.getByText('Start conversational SQL...')).toBeInTheDocument();
     });
 
     it('handles user input and submission', async () => {
-        // Mock empty history response
-        (global.fetch as any).mockResolvedValueOnce({
+        // Mock history responses (two calls)
+        vi.mocked(global.fetch).mockResolvedValueOnce({
             json: async () => ({ content: '' }),
-        });
+        } as unknown as Response);
+        vi.mocked(global.fetch).mockResolvedValueOnce({
+            json: async () => ({ content: '' }),
+        } as unknown as Response);
 
         // Mock execute response
-        (global.fetch as any).mockResolvedValueOnce({
+        vi.mocked(global.fetch).mockResolvedValueOnce({
             json: async () => ({ markdown: 'Result: | id | name |\n|---|---|\n| 1 | Test |' }),
-        });
+        } as unknown as Response);
 
         await act(async () => {
-            render(<ChatInterface sessionId="test-session" />);
+            render(
+                <SidebarProvider>
+                    <ChatInterface sessionId="test-session" />
+                </SidebarProvider>
+            );
         });
 
-        const input = screen.getByPlaceholderText(/Write your SQL query/i);
+        const input = screen.getByPlaceholderText(/Type your SQL/i);
         // There are multiple buttons now (Delete, Add Note, Send). We need the submit button.
         const button = document.querySelector('button[type="submit"]') as HTMLButtonElement;
 

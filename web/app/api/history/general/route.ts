@@ -11,8 +11,10 @@ export async function GET() {
   try {
     const content = getSessionContent(GENERAL_QUERIES_ID);
     return NextResponse.json({ content });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -27,8 +29,10 @@ export async function POST(request: Request) {
     }
     appendToSession(GENERAL_QUERIES_ID, type || "saved-query", content);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -48,7 +52,9 @@ export async function DELETE(request: Request) {
 
     deleteSessionNote(GENERAL_QUERIES_ID, index);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

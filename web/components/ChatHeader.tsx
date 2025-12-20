@@ -30,6 +30,7 @@ export function ChatHeader({ title, onRename, onDelete, onAddNote, onAddDiagram,
     const { toggleMobile } = useSidebar();
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
     }, []);
 

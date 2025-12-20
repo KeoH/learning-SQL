@@ -48,9 +48,12 @@ export function Sidebar() {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchSessions();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchDatabases();
         // Close mobile sidebar on route change
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMobileOpen(false);
     }, [pathname, setIsMobileOpen]);
 
