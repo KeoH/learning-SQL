@@ -1,53 +1,71 @@
-# Learning SQL Environment
+    # 🚀 SQL Playground
 
-This project provides a simple PostgreSQL setup using Docker to help you learn SQL.
+SQL Playground is an interactive learning environment designed to help you master SQL (PostgreSQL) through a conversational and visual interface. It combines a powerful SQL editor with personal notes and automated Mermaid diagrams to document your learning journey.
 
-## Prerequisites
+## ✨ Features
 
-- Docker
-- Docker Compose
-- Make (optional, but recommended for using the Makefile)
+- **💻 Interactive SQL Console**: Write and execute PostgreSQL queries with real-time results.
+- **📊 Mermaid Diagrams**: Create, edit, and render complex diagrams (flowcharts, ERD, etc.) directly in the chat.
+- **📝 Personal Notes**: Keep track of your learning by adding persistent Markdown notes to your sessions.
+- **🔖 Saved Queries**: Save frequently used or interesting queries for quick access across sessions.
+- **🗂️ Session Management**: Organize your work into sessions, each saved as a readable Markdown file.
+- **🎨 Premium UI**: Modern dark theme with a clean, responsive design optimized for focus.
 
-## Quick Start
-    
-1.  **Start the environment (Database + Web App):**
+## 🛠️ Tech Stack
+
+- **Frontend**: [Next.js 16](https://nextjs.org/) (App Router), [React 19](https://react.dev/), [Tailwind CSS 4](https://tailwindcss.com/)
+- **Database**: [PostgreSQL 15](https://www.postgresql.org/)
+- **Utilities**: [Mermaid.js](https://mermaid.js.org/) (diagrams), [React Markdown](https://github.com/remarkjs/react-markdown) (notes), [Prismjs](https://prismjs.com/) (syntax highlighting)
+- **Containerization**: [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+
+## 🚀 Quick Start
+
+Ensure you have **Docker** and **Docker Compose** installed.
+
+1.  **Start the environment:**
+
     ```bash
     make up
     ```
-    This will start the PostgreSQL database and the Next.js web application.
-    - Web App: [http://localhost:3000](http://localhost:3000)
-    - Database Port: 5432
 
-2.  **Use the Web App:**
-    Open [http://localhost:3000](http://localhost:3000) in your browser.
+    This launches the PostgreSQL database and the Next.js web application.
+
+    - **Web App**: [http://localhost:3000](http://localhost:3000)
+    - **Database Port**: `5432`
+
+2.  **Explore the App:**
+
+    - Open [http://localhost:3000](http://localhost:3000).
     - Create a new session.
-    - Type SQL commands (e.g., `SELECT now();`) and see the results in a chat-like interface.
-    - Conversaions are saved as Markdown files in the `web/conversations` directory.
+    - Run SQL like `SELECT current_timestamp;`.
+    - Try adding a diagram with the "Add Diagram" button using Mermaid syntax.
 
-3.  **Connect to the database terminal (optional):**
-    If you prefer the command line:
+3.  **Command Line Access (Optional):**
+
     ```bash
     make psql
     ```
 
-4.  **Stop the environment:**
+4.  **Shut Down:**
     ```bash
     make down
     ```
 
-## Makefile Commands
+## 🏗️ Development & Testing
 
-- `make up`: Starts the PostgreSQL container and Web App in the background.
-- `make down`: Stops the containers.
-- `make logs`: Follows the container logs.
-- `make psql`: Connects to the running database shell.
-- `make clean`: Stops the container and **deletes the data volume**. Use with caution!
+- **Backend Configuration**: Environment variables are managed in `docker-compose.yml`.
+- **Unit Testing**: Run tests with `npm test` inside the `web` directory.
+- **Code Linting**: Use `npm run lint` to check for code style issues.
+- **Clean Environment**: Use `make clean` to stop containers and **wipe the database volume**.
 
-## Database Details
+## 🔑 Database Credentials
 
-- **Host:** localhost (from host machine) or `db` (from web container)
-- **Port:** 5432
-- **User:** admin
-- **Password:** password
-- **Database:** learning_db
+- **Host**: `localhost` (external) / `db` (internal)
+- **Port**: `5432`
+- **User**: `admin`
+- **Password**: `password`
+- **Database**: `learning_db`
 
+---
+
+Made with ❤️ for SQL learners.
