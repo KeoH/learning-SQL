@@ -19,24 +19,26 @@ export function MermaidRender({ chart }: MermaidRenderProps) {
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (ref.current && chart) {
-            // Clear previous content
-            ref.current.removeAttribute('data-processed');
-            ref.current.innerHTML = chart;
-            
-            // Re-render
-            try {
-                mermaid.contentLoaded();
-                // Alternatively, use mermaid.render if contentLoaded is not enough
-                // But since we put the code inside, contentLoaded should find it if we use standard mermaid class
-            } catch (err) {
-                console.error('Mermaid render error:', err);
+        const renderDiagram = async () => {
+            if (ref.current && chart) {
+                try {
+                    const result = await mermaid.render('mermaid-' + Math.random().toString(36).substr(2, 9), chart);
+                    const { svg } = result;
+                    ref.current.innerHTML = svg;
+                } catch (err) {
+                    console.error('Mermaid render error:', err);
+                }
             }
-        }
+        };
+        renderDiagram();
     }, [chart]);
 
     return (
-        <div className="mermaid bg-slate-900/50 p-4 rounded-lg overflow-x-auto min-h-[100px] flex justify-center" ref={ref}>
+        <div 
+            className="mermaid bg-slate-900/50 p-4 rounded-lg overflow-x-auto min-h-[100px] flex justify-center" 
+            ref={ref}
+            data-testid="mermaid-container"
+        >
             {chart}
         </div>
     );
