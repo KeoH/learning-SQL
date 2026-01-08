@@ -24,7 +24,7 @@ export function MermaidRender({ chart }: MermaidRenderProps) {
         const renderDiagram = async () => {
             if (ref.current && chart) {
                 try {
-                    const result = await mermaid.render('mermaid-' + Math.random().toString(36).substr(2, 9), chart);
+                    const result = await mermaid.render('mermaid-' + Math.random().toString(36).substring(2, 11), chart);
                     const { svg } = result;
                     // Only update innerHTML if component is still mounted
                     if (isMounted && ref.current) {
