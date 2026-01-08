@@ -19,18 +19,28 @@ export function MermaidRender({ chart }: MermaidRenderProps) {
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        let isMounted = true;
+
         const renderDiagram = async () => {
             if (ref.current && chart) {
                 try {
-                    const result = await mermaid.render('mermaid-' + Math.random().toString(36).substr(2, 9), chart);
+                    const result = await mermaid.render('mermaid-' + Math.random().toString(36).substring(2, 11), chart);
                     const { svg } = result;
-                    ref.current.innerHTML = svg;
+                    // Only update innerHTML if component is still mounted
+                    if (ref.current && isMounted) {
+                        ref.current.innerHTML = svg;
+                    }
                 } catch (err) {
                     console.error('Mermaid render error:', err);
                 }
             }
         };
         renderDiagram();
+
+        // Cleanup function to prevent memory leaks
+        return () => {
+            isMounted = false;
+        };
     }, [chart]);
 
     return (
