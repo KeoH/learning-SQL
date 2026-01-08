@@ -67,11 +67,14 @@ describe('SidebarContext', () => {
     });
 
     it('throws error when used outside of provider', () => {
-        // Suppress console.error for this test as we expect an error
+        // Set up console.error spy before any rendering to suppress expected error output
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         
-        expect(() => render(<TestComponent />)).toThrow('useSidebar must be used within a SidebarProvider');
-        
-        consoleSpy.mockRestore();
+        try {
+            expect(() => render(<TestComponent />)).toThrow('useSidebar must be used within a SidebarProvider');
+        } finally {
+            // Always restore the spy, even if the test fails
+            consoleSpy.mockRestore();
+        }
     });
 });
