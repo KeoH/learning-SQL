@@ -34,6 +34,10 @@ export function ChatHeader({ title, onRename, onDelete, onAddNote, onAddDiagram,
         setMounted(true);
     }, []);
 
+    useEffect(() => {
+        setEditedTitle(title);
+    }, [title]);
+
     const handleSave = () => {
         if (editedTitle.trim()) {
             onRename(editedTitle.trim());
