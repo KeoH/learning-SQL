@@ -272,4 +272,68 @@ describe('ChatInterface', () => {
         const input = screen.getByPlaceholderText(/Type your SQL/i);
         expect(input).toHaveValue('SELECT * FROM copy_test;');
     });
+
+    describe('pagination', () => {
+        const mockPaginatedHistory = () => {
+            vi.mocked(global.fetch).mockImplementation(async (url) => {
+                const urlStr = url.toString();
+                if (urlStr.includes('/api/history/test-session')) {
+                    // Create content with 2 pages
+                    const content = '# Paginated Session\n' + 
+                        '## Query\n```sql\nSELECT "page 1";\n```\n' +
+                        '## Page Break\n' +
+                        '## Query\n```sql\nSELECT "page 2";\n```';
+                    return {
+                        ok: true,
+                        json: async () => ({ content }),
+                    } as unknown as Response;
+                }
+                if (urlStr.includes('/api/history/general')) {
+                    return { ok: true, json: async () => ({ content: '' }) } as unknown as Response;
+                }
+                return { ok: true, json: async () => ({}) } as Response;
+            });
+        };
+
+        it('shows pagination controls when multiple pages exist', async () => {
+            mockPaginatedHistory();
+            await renderChat();
+
+            expect(screen.getByTitle('Previous Page')).toBeInTheDocument();
+            expect(screen.getByTitle('Next Page')).toBeInTheDocument();
+            // Should show correct page indicator
+            expect(screen.getByText('2')).toBeInTheDocument();
+        });
+
+        it('displays the last page by default', async () => {
+            mockPaginatedHistory();
+            await renderChat();
+
+            expect(screen.getByText(/page 2/i)).toBeInTheDocument();
+            expect(screen.queryByText(/page 1/i)).not.toBeInTheDocument();
+            expect(screen.getByText('2')).toBeInTheDocument();
+        });
+
+        it('allows navigating between pages', async () => {
+            mockPaginatedHistory();
+            await renderChat();
+
+            const prevBtn = screen.getByTitle('Previous Page');
+            await act(async () => {
+                fireEvent.click(prevBtn);
+            });
+
+            expect(screen.getByText(/page 1/i)).toBeInTheDocument();
+            expect(screen.queryByText(/page 2/i)).not.toBeInTheDocument();
+            expect(screen.getByText('1')).toBeInTheDocument();
+
+            const nextBtn = screen.getByTitle('Next Page');
+            await act(async () => {
+                fireEvent.click(nextBtn);
+            });
+
+            expect(screen.getByText(/page 2/i)).toBeInTheDocument();
+            expect(screen.queryByText(/page 1/i)).not.toBeInTheDocument();
+        });
+    });
 });

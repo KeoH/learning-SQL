@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-const CONVERSATIONS_DIR = path.join(process.cwd(), "conversations");
+const CONVERSATIONS_DIR = path.join(process.cwd(), "..", "conversations");
 
 export interface Session {
   id: string;
@@ -13,6 +13,9 @@ export interface Message {
   type: "query" | "result" | "error" | "note" | "saved-query";
   content: string;
 }
+
+const PAGE_BREAK_MARKER = "## Page Break";
+const MESSAGES_PER_PAGE = 20;
 
 // Function to ensure conversations directory exists
 const ensureDir = () => {
@@ -87,7 +90,35 @@ export const appendToSession = (
 
   let markdown = "";
   if (type === "query") {
-    markdown = `\n## Query\n\`\`\`sql\n${content}\n\`\`\`\n`;
+    // Check if we should insert a page break
+    const currentContent = fs.readFileSync(filePath, "utf-8");
+    // Count how many blocks since last Page Break
+    const lastPageBreakIndex = currentContent.lastIndexOf(PAGE_BREAK_MARKER);
+    const contentAfterLastBreak =
+      lastPageBreakIndex !== -1
+        ? currentContent.substring(lastPageBreakIndex)
+        : currentContent;
+
+    const messagesInCurrentPage = contentAfterLastBreak
+      .split(/^## /gm)
+      .filter((b) => {
+        const t = b.trim();
+        return (
+          t &&
+          (t.startsWith("Query") ||
+            t.startsWith("Result") ||
+            t.startsWith("Error") ||
+            t.startsWith("Note") ||
+            t.startsWith("Diagram") ||
+            t.startsWith("Saved Query"))
+        );
+      }).length;
+
+    if (messagesInCurrentPage >= MESSAGES_PER_PAGE) {
+      markdown += `\n${PAGE_BREAK_MARKER}\n`;
+    }
+
+    markdown += `\n## Query\n\`\`\`sql\n${content}\n\`\`\`\n`;
   } else if (type === "result") {
     // Content is expected to be a markdown table string already, or we format it here?
     // Let's assume the API formats it to markdown table or code block before calling this.
@@ -161,7 +192,8 @@ export const updateSessionNote = (
       trimmed.startsWith("Error") ||
       trimmed.startsWith("Note") ||
       trimmed.startsWith("Diagram") ||
-      trimmed.startsWith("Saved Query")
+      trimmed.startsWith("Saved Query") ||
+      trimmed.startsWith("Page Break")
     ) {
       validIndices.push(idx);
     }
@@ -173,6 +205,10 @@ export const updateSessionNote = (
 
   const realIndex = validIndices[index];
   const targetPart = parts[realIndex];
+
+  if (targetPart.startsWith("Page Break")) {
+    throw new Error("Cannot edit a page break");
+  }
 
   if (
     !targetPart.startsWith("Note") &&
@@ -214,7 +250,8 @@ export const deleteSessionNote = (id: string, index: number) => {
       trimmed.startsWith("Error") ||
       trimmed.startsWith("Note") ||
       trimmed.startsWith("Diagram") ||
-      trimmed.startsWith("Saved Query")
+      trimmed.startsWith("Saved Query") ||
+      trimmed.startsWith("Page Break")
     ) {
       validIndices.push(idx);
     }
@@ -226,6 +263,10 @@ export const deleteSessionNote = (id: string, index: number) => {
 
   const realIndex = validIndices[index];
   const targetPart = parts[realIndex];
+
+  if (targetPart.startsWith("Page Break")) {
+    throw new Error("Cannot delete a page break");
+  }
 
   if (
     !targetPart.startsWith("Note") &&
