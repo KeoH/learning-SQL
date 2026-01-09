@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Send, Terminal as TerminalIcon, User, Database, AlertCircle, StickyNote, Pencil, Trash2, AlertTriangle, Bold, Italic, Link as LinkIcon, Image as ImageIcon, List, ListOrdered, Code, Quote, Heading, Copy, Bookmark } from 'lucide-react';
+import { Send, Terminal as TerminalIcon, User, Database, AlertCircle, StickyNote, Pencil, Trash2, AlertTriangle, Bold, Italic, Link as LinkIcon, ImageIcon, List, ListOrdered, Code, Quote, Heading, Copy, Bookmark, ChevronLeft, ChevronRight, Hash, LayoutDashboard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ChatHeader } from '@/components/ChatHeader';
@@ -22,7 +22,7 @@ interface ChatInterfaceProps {
 }
 
 interface parsedMessage {
-    type: 'query' | 'result' | 'error' | 'note' | 'mermaid' | 'saved-query';
+    type: 'query' | 'result' | 'error' | 'note' | 'mermaid' | 'saved-query' | 'page-break';
     content: string;
     raw: string;
     name?: string; // For saved queries
@@ -31,9 +31,9 @@ interface parsedMessage {
 
 // Simple parser to split the markdown file into messages
 const parseMarkdown = (md: string, scope: 'session' | 'general' = 'session'): parsedMessage[] => {
-    // Only split on standard headers: Query, Result, Error, Note, Diagram
+    // Only split on standard headers: Query, Result, Error, Note, Diagram, Page Break
     // Use lookahead to keep the delimiter 
-    const parts = md.split(/^## (?=Query|Result|Error|Note|Diagram|Saved Query)/gm);
+    const parts = md.split(/^## (?=Query|Result|Error|Note|Diagram|Saved Query|Page Break)/gm);
     const messages: parsedMessage[] = [];
 
     parts.forEach(part => {
@@ -69,6 +69,8 @@ const parseMarkdown = (md: string, scope: 'session' | 'general' = 'session'): pa
             const sqlMatch = trimmedPart.match(/```sql([\s\S]*?)```/);
             const content = sqlMatch ? sqlMatch[1].trim() : '';
             messages.push({ type: 'saved-query', content, raw: part, name, scope });
+        } else if (trimmedPart.startsWith('Page Break')) {
+            messages.push({ type: 'page-break', content: 'Page Break', raw: part });
         }
     });
     return messages;
@@ -77,6 +79,30 @@ const parseMarkdown = (md: string, scope: 'session' | 'general' = 'session'): pa
 export function ChatInterface({ sessionId }: ChatInterfaceProps) {
     const [input, setInput] = useState('');
     const [parsedMessages, setParsedMessages] = useState<parsedMessage[]>([]);
+    const [generalMessages, setGeneralMessages] = useState<parsedMessage[]>([]);
+    const [currentPage, setCurrentPage] = useState(0);
+
+    const paginatedMessages = useMemo(() => {
+        if (parsedMessages.length === 0) return [[]];
+        const pages: parsedMessage[][] = [[]];
+        let currentPageIndex = 0;
+        parsedMessages.forEach(msg => {
+            if (msg.type === 'page-break') {
+                pages.push([]);
+                currentPageIndex++;
+            } else {
+                pages[currentPageIndex].push(msg);
+            }
+        });
+        return pages;
+    }, [parsedMessages]);
+
+    // Handle initial load and page additions
+    useEffect(() => {
+        if (paginatedMessages.length > 0) {
+            setCurrentPage(paginatedMessages.length - 1);
+        }
+    }, [sessionId, paginatedMessages.length]);
     const [loading, setLoading] = useState(false);
     const [title, setTitle] = useState('');
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -95,6 +121,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
     // Deletion State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deletingNoteIndex, setDeletingNoteIndex] = useState<number | null>(null);
+    const [deletingScope, setDeletingScope] = useState<'session' | 'general'>('session');
     const [isDeleting, setIsDeleting] = useState(false);
     // Saving Query State
     const [isSaveQueryModalOpen, setIsSaveQueryModalOpen] = useState(false);
@@ -128,7 +155,8 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                 const sessionMessages = parseMarkdown(data.content, 'session');
                 const generalMessages = gData.content ? parseMarkdown(gData.content, 'general') : [];
 
-                setParsedMessages([...sessionMessages, ...generalMessages]);
+                setParsedMessages(sessionMessages);
+                setGeneralMessages(generalMessages);
             }
         } catch (error) {
             console.error('Failed to load history', error);
@@ -141,7 +169,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
 
     useEffect(() => {
         scrollToBottom();
-    }, [parsedMessages]);
+    }, [currentPage, paginatedMessages]);
 
     const executeQuery = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -172,8 +200,8 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                 setParsedMessages(prev => [...prev, { type: 'error', content: data.error, raw: '' }]);
             }
 
-            // Optionally re-fetch in background to ensure consistency
-            // fetchHistory(); 
+            // Re-fetch in background to ensure consistency (e.g. backend-inserted page breaks)
+            fetchHistory(); 
         } catch (error: unknown) {
             console.error('Failed to execute query', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -375,8 +403,9 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
         }
     };
 
-    const handleOpenDeleteConfirm = (index: number) => {
+    const handleOpenDeleteConfirm = (index: number, scope: 'session' | 'general' = 'session') => {
         setDeletingNoteIndex(index);
+        setDeletingScope(scope);
         setIsDeleteModalOpen(true);
     };
 
@@ -384,17 +413,8 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
         if (deletingNoteIndex === null) return;
         setIsDeleting(true);
         try {
-            if (deletingNoteIndex === null) return;
-            const msg = parsedMessages[deletingNoteIndex];
-            
-            const endpoint = msg.scope === 'general' ? '/api/history/general' : `/api/history/${sessionId}`;
-            
-            // For general queries, we need to calculate the relative index within general queries
-            let finalIndex = deletingNoteIndex;
-            if (msg.scope === 'general') {
-                const firstGeneralIdx = parsedMessages.findIndex(m => m.scope === 'general');
-                finalIndex = deletingNoteIndex - firstGeneralIdx;
-            }
+            const endpoint = deletingScope === 'general' ? '/api/history/general' : `/api/history/${sessionId}`;
+            const finalIndex = deletingNoteIndex;
 
             const res = await fetch(`${endpoint}?index=${finalIndex}`, {
                 method: 'DELETE',
@@ -456,16 +476,69 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                 onDelete={handleDelete}
                 onAddNote={handleOpenAddNote}
                 onAddDiagram={handleOpenAddDiagram}
-                savedQueries={parsedMessages.filter(m => m.type === 'saved-query')}
+                savedQueries={[
+                    ...parsedMessages.filter(m => m.type === 'saved-query'),
+                    ...generalMessages.filter(m => m.type === 'saved-query')
+                ]}
                 onSelectQuery={handleCopyToInput}
                 onDeleteQuery={(name: string, scope?: 'session' | 'general') => {
-                    const idx = parsedMessages.findIndex(m => m.type === 'saved-query' && m.name === name && m.scope === scope);
-                    if (idx !== -1) handleOpenDeleteConfirm(idx);
+                    const targetList = scope === 'general' ? generalMessages : parsedMessages;
+                    const idx = targetList.findIndex(m => m.type === 'saved-query' && m.name === name);
+                    if (idx !== -1) handleOpenDeleteConfirm(idx, scope || 'session');
+                }}
+                onSaveQuery={async (name, content, scope) => {
+                    const formattedContent = `${name}\n\`\`\`sql\n${content}\n\`\`\``;
+                    const endpoint = scope === 'general' ? '/api/history/general' : `/api/history/${sessionId}`;
+                    
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'saved-query', content: formattedContent }),
+                    });
+                    if (res.ok) {
+                        await fetchHistory();
+                    }
                 }}
             />
+            {/* Pagination Controls */}
+            {paginatedMessages.length > 1 && (
+                <div className="flex items-center justify-between px-6 py-3 bg-slate-900/50 border-b border-slate-800/50 backdrop-blur-sm sticky top-0 z-10">
+                    <div className="flex items-center gap-4">
+                        <div className="flex bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                                disabled={currentPage === 0}
+                                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-md transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                                title="Previous Page"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div className="flex items-center px-4 gap-2 border-x border-slate-700/50 mx-1">
+                                <Hash className="w-4 h-4 text-blue-500/70" />
+                                <span className="text-sm font-bold text-slate-200 tabular-nums">
+                                    {currentPage + 1} <span className="text-slate-500 font-medium">/ {paginatedMessages.length}</span>
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(paginatedMessages.length - 1, prev + 1))}
+                                disabled={currentPage === paginatedMessages.length - 1}
+                                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-md transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                                title="Next Page"
+                            >
+                                <ChevronRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-widest bg-slate-800/30 px-3 py-1.5 rounded-full border border-slate-700/30">
+                        <LayoutDashboard className="w-3.5 h-3.5" />
+                        <span>Session Browser</span>
+                    </div>
+                </div>
+            )}
+
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scroll-smooth">
-                {parsedMessages.length === 0 ? (
+                {paginatedMessages.length === 0 || (paginatedMessages[currentPage] && paginatedMessages[currentPage].length === 0) ? (
                     <div className="flex flex-col items-center justify-center h-[80vh] text-slate-500 opacity-50 select-none">
                         <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-blue-500/10">
                             <TerminalIcon className="w-10 h-10" />
@@ -473,7 +546,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                         <p className="text-lg font-medium">Start conversational SQL...</p>
                     </div>
                 ) : (
-                    parsedMessages.map((msg, idx) => (
+                    paginatedMessages[currentPage]?.map((msg, idx) => (
                         <div
                             key={idx}
                             className={cn(
@@ -499,6 +572,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                                 {msg.type === 'error' && <AlertCircle className="w-4 h-4" />}
                                 {msg.type === 'note' && <StickyNote className="w-4 h-4" />}
                                 {msg.type === 'mermaid' && <Workflow className="w-4 h-4" />}
+                                {msg.type === 'saved-query' && <Bookmark className="w-4 h-4" />}
                             </div>
 
                             {/* Content Bubble */}

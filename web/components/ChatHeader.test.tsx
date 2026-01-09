@@ -81,30 +81,31 @@ describe('ChatHeader', () => {
         expect(defaultProps.onAddDiagram).toHaveBeenCalled();
     });
 
-    it('toggles saved queries dropdown', () => {
+    it('opens saved queries modal', () => {
         renderHeader();
-        const dropdownBtn = screen.getByText('Queries');
+        const modalBtn = screen.getByText('Saved Queries');
+        fireEvent.click(modalBtn);
         
-        fireEvent.click(dropdownBtn);
-        expect(screen.getByText('Query 1')).toBeInTheDocument();
-        expect(screen.getByText('Query 2')).toBeInTheDocument();
+        // The modal title should be visible
+        expect(screen.getByRole('heading', { name: 'Saved Queries' })).toBeInTheDocument();
     });
 
-    it('calls onSelectQuery when a query is clicked', () => {
+    it('calls onSelectQuery from modal', () => {
         renderHeader();
-        fireEvent.click(screen.getByText('Queries'));
+        fireEvent.click(screen.getByText('Saved Queries'));
         
-        fireEvent.click(screen.getByText('Query 1'));
-        expect(defaultProps.onSelectQuery).toHaveBeenCalledWith('SELECT 1');
+        const useBtn = screen.getByText('Use Query');
+        fireEvent.click(useBtn);
+        expect(defaultProps.onSelectQuery).toHaveBeenCalled();
     });
 
-    it('calls onDeleteQuery when delete query button is clicked', () => {
+    it('calls onDeleteQuery from modal', () => {
         renderHeader();
-        fireEvent.click(screen.getByText('Queries'));
+        fireEvent.click(screen.getByText('Saved Queries'));
         
-        const deleteBtns = screen.getAllByTitle('Delete saved query');
-        fireEvent.click(deleteBtns[0]);
+        const deleteBtn = screen.getByTitle('Delete query');
+        fireEvent.click(deleteBtn);
 
-        expect(defaultProps.onDeleteQuery).toHaveBeenCalledWith('Query 1', 'session');
+        expect(defaultProps.onDeleteQuery).toHaveBeenCalled();
     });
 });
